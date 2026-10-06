@@ -1,0 +1,114 @@
+---
+title: Remote MCP tool servers
+description: Connect OGX agents to third-party MCP tool servers for capabilities like infrastructure provisioning, using the built-in MCP connector.
+sidebar_label: MCP tool servers
+sidebar_position: 6
+---
+
+# Remote MCP tool servers
+
+OGX's [`remote::model-context-protocol`](/docs/providers/tool_runtime/remote_model-context-protocol) tool runtime connects agents to any MCP server that speaks Streamable HTTP or SSE. Register the server as a connector and reference it from your agent — no custom provider code needed.
+
+See also the [Tools documentation](/docs/building_applications/tools#model-context-protocol-mcp) for the full MCP integration guide.
+
+## Example: Cohesivity
+
+[Cohesivity](https://cohesivity.ai/offerings?ref=gh-ogx) is a managed backend infrastructure service. Its MCP endpoint gives OGX agents on-demand access to Postgres databases, site hosting, object storage, authentication, and email. No account or API keys required.
+
+```text
+https://cohesivity.ai/mcp
+```
+
+Available tools: `create_tenant`, `claim_tenant`, `tenant_status`, `provision_resource`, `give_feedback`, `get_cohesivity_documentation`.
+
+### Option A — connector in `config.yaml`
+
+Register Cohesivity as a connector in your distribution config:
+
+```yaml
+connectors:
+  - connector_id: "mcp::cohesivity"
+    connector_type: mcp
+    url: "https://cohesivity.ai/mcp"
+```
+
+Start the server (see [Starting the OGX server](/docs/distributions/starting_ogx_server)), then reference the connector when creating an agent:
+
+```python
+from ogx_client import OgxClient
+from ogx_client.lib.agents.agent import Agent
+from ogx_client.lib.agents.event_logger import EventLogger
+
+client = OgxClient(base_url="http://localhost:8321")
+
+agent = Agent(
+    client,
+    model="meta-llama/Llama-3.3-70B-Instruct",
+    instructions="You are a helpful backend infrastructure assistant.",
+    tools=[
+        {
+            "type": "mcp",
+            "connector_id": "mcp::cohesivity",
+            "server_label": "cohesivity",
+        }
+    ],
+)
+
+session_id = agent.create_session("infra-session")
+response = agent.create_turn(
+    messages=[{"role": "user", "content": "Create a Postgres database for my project"}],
+    session_id=session_id,
+)
+for log in EventLogger().log(response):
+    log.print()
+```
+
+### Option B — inline `server_url`
+
+Skip connector registration and pass the URL directly:
+
+```python
+agent = Agent(
+    client,
+    model="meta-llama/Llama-3.3-70B-Instruct",
+    instructions="You are a helpful backend infrastructure assistant.",
+    tools=[
+        {
+            "type": "mcp",
+            "server_url": "https://cohesivity.ai/mcp",
+            "server_label": "cohesivity",
+        }
+    ],
+)
+```
+
+### Responses API
+
+The same connector works with the Responses API:
+
+```python
+response = client.responses.create(
+    model="meta-llama/Llama-3.3-70B-Instruct",
+    tools=[
+        {
+            "type": "mcp",
+            "server_url": "https://cohesivity.ai/mcp",
+            "server_label": "cohesivity",
+        }
+    ],
+    input="Provision a Postgres database and return the connection string",
+)
+print(response.output_text)
+```
+
+## Related resources
+
+| Topic | Link |
+|-------|------|
+| MCP tool integration guide | [Tools — MCP](/docs/building_applications/tools#model-context-protocol-mcp) |
+| MCP tool runtime provider | [`remote::model-context-protocol`](/docs/providers/tool_runtime/remote_model-context-protocol) |
+| Customizing distribution config | [Customizing config.yaml](/docs/distributions/customizing_run_yaml) |
+
+## Disclosure
+
+This page was contributed by a Cohesivity employee. [Cohesivity](https://cohesivity.ai?ref=gh-ogx) operates the MCP endpoint and the infrastructure it provisions. Configuration uses only stock OGX providers; no Cohesivity-specific adapter is required.
