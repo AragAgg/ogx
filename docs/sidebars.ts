@@ -98,6 +98,7 @@ const sidebars: SidebarsConfig = {
         'distributions/building_distro',
         'distributions/customizing_run_yaml',
         'distributions/openai_compatible_gateways',
+        'distributions/mcp_tool_connectors',
         'distributions/importing_as_library',
         'distributions/configuration',
         'distributions/starting_ogx_server',
